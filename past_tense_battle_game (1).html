@@ -1,0 +1,1117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Past Tense Battle - Classroom Quiz Game</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        cardBlue: '#3b82f6',
+                        cardYellow: '#eab308',
+                        cardOrange: '#f97316',
+                        cardGreen: '#22c55e',
+                        cardPink: '#ec4899',
+                        cardPurple: '#a855f7',
+                    },
+                    fontFamily: {
+                        sans: ['Comic Sans MS', 'Chalkboard SE', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Card Flip & Hover Animations */
+        .card-perspective {
+            perspective: 1000px;
+        }
+        .card-inner {
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+        }
+        .card-inner.flipped {
+            transform: rotateY(180deg);
+        }
+        .card-front, .card-back {
+            backface-visibility: hidden;
+        }
+        .card-back {
+            transform: rotateY(180deg);
+        }
+        
+        /* Floating Animation for Header Accent */
+        @keyframes bounce-gentle {
+            0%, 100% { transform: translateY(-3px); }
+            50% { transform: translateY(3px); }
+        }
+        .animate-bounce-gentle {
+            animation: bounce-gentle 2s infinite ease-in-out;
+        }
+        
+        /* Custom Scrollbar for Modal content */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        /* Pulse and Shake Animations */
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 15px rgba(234, 179, 8, 0.6); }
+            50% { box-shadow: 0 0 30px rgba(234, 179, 8, 1); }
+        }
+        .animate-pulse-glow {
+            animation: pulse-glow 1.5s infinite ease-in-out;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-8px); }
+            40%, 80% { transform: translateX(8px); }
+        }
+        .animate-shake {
+            animation: shake 0.4s ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-amber-50 text-slate-800 font-sans min-h-screen flex flex-col justify-between selection:bg-yellow-300">
+
+    <!-- Top Navigation Header -->
+    <header class="bg-amber-400 border-b-4 border-amber-600 shadow-md p-3 md:p-4 sticky top-0 z-20">
+        <div class="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-2">
+            <div class="flex items-center gap-3">
+                <div class="bg-white p-2 rounded-2xl shadow border-2 border-amber-600 text-2xl md:text-3xl animate-bounce-gentle">
+                    ⚡
+                </div>
+                <div>
+                    <h1 class="text-xl md:text-3xl font-black tracking-wide text-amber-950 uppercase drop-shadow-sm">
+                        Past Tense Battle
+                    </h1>
+                    <p class="text-xs md:text-sm font-bold text-amber-800">Classroom ESL Quiz Arena</p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2 md:gap-3 flex-wrap">
+                <!-- Sound Toggle -->
+                <button id="soundToggleBtn" onclick="toggleSound()" class="flex items-center gap-1 bg-white hover:bg-slate-100 border-2 border-amber-700 px-3 py-1.5 rounded-xl font-bold text-sm shadow transition">
+                    <span id="soundIcon">🔊</span>
+                    <span id="soundStatus" class="hidden sm:inline">Sound: ON</span>
+                </button>
+                
+                <!-- History / Undo Button -->
+                <button onclick="undoLastScore()" title="Undo last scoring action" class="bg-white hover:bg-slate-100 border-2 border-amber-700 px-3 py-1.5 rounded-xl font-bold text-sm shadow transition flex items-center gap-1">
+                    ↩️ <span class="hidden sm:inline">Undo</span>
+                </button>
+
+                <!-- Export Results -->
+                <button onclick="exportToCSV()" title="Download scores CSV" class="bg-emerald-600 hover:bg-emerald-700 text-white border-2 border-emerald-800 px-3 py-1.5 rounded-xl font-bold text-sm shadow transition flex items-center gap-1">
+                    📊 <span class="hidden sm:inline">Export</span>
+                </button>
+
+                <!-- Reset Game -->
+                <button onclick="confirmResetGame()" title="Reset game and board" class="bg-rose-600 hover:bg-rose-700 text-white border-2 border-rose-900 px-3 py-1.5 rounded-xl font-bold text-sm shadow transition">
+                    🔄 <span class="hidden sm:inline">Reset</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="max-w-7xl mx-auto w-full p-3 md:p-6 flex-grow flex flex-col gap-6">
+
+        <!-- TEAM SCOREBOARD PANEL -->
+        <section class="bg-white border-4 border-amber-200 rounded-3xl p-4 md:p-6 shadow-xl relative overflow-hidden">
+            <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
+                <h2 class="text-lg md:text-xl font-black text-slate-700 flex items-center gap-2">
+                    🏆 Leaderboard & Turn Control
+                </h2>
+                <div class="text-xs md:text-sm font-bold bg-amber-100 text-amber-900 px-3 py-1 rounded-full border border-amber-300">
+                    Active Turn: <span id="activeTurnDisplay" class="font-extrabold text-blue-600">Select Team</span>
+                </div>
+            </div>
+
+            <!-- Teams Grid -->
+            <div id="teamsContainer" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                <!-- Team cards rendered via Javascript -->
+            </div>
+
+            <!-- Add/Edit Team & Grid Config Bar -->
+            <div class="mt-4 pt-4 border-t border-slate-200 flex flex-wrap justify-between items-center gap-3">
+                <div class="flex items-center gap-2">
+                    <button onclick="addNewTeam()" class="bg-sky-500 hover:bg-sky-600 text-white font-bold text-xs md:text-sm px-3 py-1.5 rounded-xl border-2 border-sky-700 shadow transition flex items-center gap-1">
+                        ➕ Add Team
+                    </button>
+                </div>
+
+                <div class="flex items-center gap-3 text-xs md:text-sm font-bold text-slate-600">
+                    <label for="cardCountSelect">Questions On Board:</label>
+                    <select id="cardCountSelect" onchange="changeCardCount(this.value)" class="bg-slate-100 border-2 border-slate-300 rounded-lg px-2 py-1 font-bold text-slate-700 focus:outline-none focus:border-amber-500">
+                        <option value="16">16 Cards</option>
+                        <option value="20" selected>20 Cards</option>
+                        <option value="24">24 Cards</option>
+                        <option value="28">28 Cards</option>
+                    </select>
+                </div>
+            </div>
+        </section>
+
+        <!-- QUESTION BOARD GRID -->
+        <section class="bg-amber-100 border-4 border-amber-300 rounded-3xl p-4 md:p-6 shadow-inner min-h-[400px]">
+            <div id="boardGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-5">
+                <!-- Cards dynamically injected here -->
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer Information -->
+    <footer class="bg-amber-200 border-t-2 border-amber-300 p-3 text-center text-xs md:text-sm text-amber-900 font-bold">
+        Past Tense Battle &bull; Interactive ESL Game inspired by Baamboozle &bull; Modern Classroom Tool
+    </footer>
+
+    <!-- QUESTION / POWER-UP MODAL PANEL -->
+    <div id="gameModal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-3 md:p-6">
+        <div id="modalCard" class="bg-white border-8 border-amber-400 rounded-3xl max-w-2xl w-full p-5 md:p-8 shadow-2xl relative flex flex-col justify-between min-h-[420px] max-h-[90vh] overflow-y-auto transform transition-all scale-95 opacity-0">
+            
+            <!-- Modal Header -->
+            <div class="flex justify-between items-center border-b-2 border-slate-100 pb-3 mb-4">
+                <div class="flex items-center gap-2">
+                    <span id="modalCardNumber" class="bg-amber-500 text-white font-black text-lg px-3 py-1 rounded-xl">
+                        Card #
+                    </span>
+                    <span id="modalCategory" class="bg-slate-100 text-slate-700 text-xs font-black uppercase tracking-wider px-2.5 py-1 rounded-lg border border-slate-200">
+                        Category
+                    </span>
+                </div>
+                <div id="modalPointsBadge" class="bg-amber-100 text-amber-800 font-bold text-xs px-3 py-1 rounded-full border border-amber-300">
+                    Difficulty / Points
+                </div>
+            </div>
+
+            <!-- Modal Body / Content -->
+            <div class="my-auto text-center py-4">
+                <!-- Question Text / Power-up Title -->
+                <h3 id="modalQuestionText" class="text-xl md:text-3xl font-extrabold text-slate-800 leading-relaxed mb-6">
+                    Question appears here...
+                </h3>
+
+                <!-- Revealed Answer Box -->
+                <div id="modalAnswerBox" class="hidden bg-emerald-50 border-2 border-emerald-400 rounded-2xl p-4 my-4 animate-fade-in">
+                    <span class="block text-xs font-bold uppercase tracking-widest text-emerald-600 mb-1">Correct Answer</span>
+                    <p id="modalAnswerText" class="text-lg md:text-2xl font-black text-emerald-800">
+                        Answer text...
+                    </p>
+                </div>
+
+                <!-- Special Power-Up Interactive Dropdowns / Prompts (hidden by default) -->
+                <div id="modalPowerUpControls" class="hidden my-4 bg-purple-50 border-2 border-purple-200 rounded-2xl p-4 text-left">
+                    <label id="powerUpTargetLabel" class="block text-xs font-bold text-purple-900 uppercase mb-2">
+                        Select Target Team:
+                    </label>
+                    <select id="powerUpTargetSelect" class="w-full bg-white border-2 border-purple-300 rounded-xl p-2 font-bold text-slate-700 focus:outline-none focus:border-purple-500">
+                        <!-- Options generated in JS -->
+                    </select>
+                </div>
+            </div>
+
+            <!-- Active Team Selection indicator inside Modal -->
+            <div class="my-3 bg-slate-50 border border-slate-200 rounded-xl p-2 text-center text-xs font-bold text-slate-600 flex justify-center items-center gap-2">
+                <span>Answering Team:</span>
+                <select id="modalActiveTeamSelect" onchange="setActiveTeam(this.value)" class="bg-white border border-slate-300 rounded-lg px-2 py-0.5 font-bold text-blue-600 focus:outline-none">
+                    <!-- Teams populate dynamically -->
+                </select>
+            </div>
+
+            <!-- Modal Action Buttons Footer -->
+            <div class="pt-4 border-t-2 border-slate-100 flex flex-col gap-3">
+                
+                <!-- Question State Buttons -->
+                <div id="questionControls" class="flex flex-wrap gap-2 md:gap-3 justify-center">
+                    <button id="revealBtn" onclick="revealAnswer()" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-black text-lg py-3 rounded-2xl shadow-md border-b-4 border-amber-700 transition active:translate-y-1">
+                        👁️ Reveal Answer
+                    </button>
+
+                    <div id="scoringButtons" class="hidden w-full flex gap-3">
+                        <button onclick="handleQuestionResult(true)" class="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-black text-lg py-3 rounded-2xl shadow-md border-b-4 border-emerald-700 transition active:translate-y-1 flex items-center justify-center gap-2">
+                            ✅ Correct
+                        </button>
+                        <button onclick="handleQuestionResult(false)" class="flex-1 bg-rose-500 hover:bg-rose-600 text-white font-black text-lg py-3 rounded-2xl shadow-md border-b-4 border-rose-700 transition active:translate-y-1 flex items-center justify-center gap-2">
+                            ❌ Incorrect
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Power-Up State Buttons -->
+                <div id="powerUpControlsBtn" class="hidden flex gap-3 justify-center">
+                    <button onclick="applyPowerUp()" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-black text-lg py-3 rounded-2xl shadow-md border-b-4 border-purple-900 transition active:translate-y-1">
+                        ✨ Apply Power-Up
+                    </button>
+                </div>
+
+                <!-- Universal Cancel / Back Button -->
+                <button onclick="closeModal()" class="w-full bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-sm py-2 rounded-xl transition">
+                    ⬅️ Back to Board
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- CUSTOM NOTIFICATION / ALERT TOAST -->
+    <div id="toast" class="fixed bottom-5 right-5 bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-2xl z-50 hidden border-2 border-amber-400 font-bold text-sm transform transition duration-300">
+        Notification Message
+    </div>
+
+    <!-- JAVASCRIPT GAME LOGIC -->
+    <script>
+        /* ==========================================================================
+           1. QUESTION DATABASE (20+ Verifiable Grammar Questions & Fun Mini-Challenges)
+           ========================================================================== */
+        const QUESTION_DATABASE = [
+            // A. SIMPLE PAST VERBS
+            { id: 1, type: 'question', category: 'Simple Past Verbs', difficulty: 'Easy', points: 10, question: 'What is the past form of "go"?', answer: 'went' },
+            { id: 2, type: 'question', category: 'Simple Past Verbs', difficulty: 'Easy', points: 10, question: 'What is the past form of "eat"?', answer: 'ate' },
+            { id: 3, type: 'question', category: 'Simple Past Verbs', difficulty: 'Easy', points: 10, question: 'What is the past form of "play"?', answer: 'played' },
+            { id: 4, type: 'question', category: 'Simple Past Verbs', difficulty: 'Easy', points: 10, question: 'What is the past form of "see"?', answer: 'saw' },
+            { id: 5, type: 'question', category: 'Simple Past Verbs', difficulty: 'Medium', points: 15, question: 'What is the past form of "buy"?', answer: 'bought' },
+            
+            // B. COMPLETE THE SENTENCE
+            { id: 6, type: 'question', category: 'Complete Sentence', difficulty: 'Easy', points: 10, question: 'Yesterday, I ___ (visit) my grandmother.', answer: 'visited' },
+            { id: 7, type: 'question', category: 'Complete Sentence', difficulty: 'Easy', points: 10, question: 'She ___ (have) breakfast at 7 a.m.', answer: 'had' },
+            { id: 8, type: 'question', category: 'Complete Sentence', difficulty: 'Medium', points: 15, question: 'They ___ (watch) a movie last night.', answer: 'watched' },
+            { id: 9, type: 'question', category: 'Complete Sentence', difficulty: 'Medium', points: 15, question: 'We ___ (take) the bus to school.', answer: 'took' },
+            { id: 10, type: 'question', category: 'Complete Sentence', difficulty: 'Challenging', points: 20, question: 'He ___ (write) a letter yesterday.', answer: 'wrote' },
+
+            // C. NEGATIVE SENTENCES
+            { id: 11, type: 'question', category: 'Negative Sentences', difficulty: 'Medium', points: 15, question: 'Change to negative: "She played tennis."', answer: 'She didn\'t play tennis.' },
+            { id: 12, type: 'question', category: 'Negative Sentences', difficulty: 'Challenging', points: 20, question: 'Change to negative: "They went to the park."', answer: 'They didn\'t go to the park.' },
+
+            // D. QUESTIONS
+            { id: 13, type: 'question', category: 'Forming Questions', difficulty: 'Medium', points: 15, question: 'Make a question: "You watched TV."', answer: 'Did you watch TV?' },
+            { id: 14, type: 'question', category: 'Forming Questions', difficulty: 'Easy', points: 10, question: 'Complete: "___ he visit his uncle?"', answer: 'Did' },
+
+            // E. ERROR CORRECTION
+            { id: 15, type: 'question', category: 'Error Correction', difficulty: 'Challenging', points: 20, question: 'Correct the sentence: "He didn\'t went to school."', answer: 'He didn\'t go to school.' },
+            { id: 16, type: 'question', category: 'Error Correction', difficulty: 'Challenging', points: 20, question: 'Correct the sentence: "Did she played soccer?"', answer: 'Did she play soccer?' },
+
+            // F. FUN CLASSROOM MINI-CHALLENGES (WITH TIMER)
+            { id: 17, type: 'challenge', category: '🎭 Action Challenge', difficulty: 'Fun', points: 15, timerSecs: 10, question: 'Act out the verb "SWAM" without speaking! Your team must guess within 10 seconds.', answer: 'Action: Swimming motion!' },
+            { id: 18, type: 'challenge', category: '⏱️ 10-Second Sprint', difficulty: 'Fun', points: 15, timerSecs: 10, question: 'Create a correct sentence using "BOUGHT" in under 10 seconds!', answer: 'Example: "I bought an ice cream yesterday!"' },
+            { id: 19, type: 'challenge', category: '🔤 Rapid Spelling', difficulty: 'Fun', points: 15, timerSecs: 10, question: 'Spell the past tense of "CATCH" out loud backwards!', answer: 'T - G - U - O - C - B (BOUGHT? No! CATCH -> CAUGHT: T - H - G - U - A - C)' },
+            { id: 20, type: 'challenge', category: '😂 Funny Mistake', difficulty: 'Fun', points: 15, timerSecs: 10, question: 'Fix this funny mistake: "Yesterday I sleeped on a banana!"', answer: 'Correction: "Yesterday I SLEPT on a banana!"' },
+
+            // EXTRA GRAMMAR QUESTIONS
+            { id: 21, type: 'question', category: 'Simple Past Verbs', difficulty: 'Medium', points: 15, question: 'What is the past form of "drink"?', answer: 'drank' },
+            { id: 22, type: 'question', category: 'Complete Sentence', difficulty: 'Easy', points: 10, question: 'My teacher ___ (teach) a great lesson.', answer: 'taught' },
+            { id: 23, type: 'question', category: 'Negative Sentences', difficulty: 'Medium', points: 15, question: 'Change to negative: "I bought a new book."', answer: 'I didn\'t buy a new book.' },
+            { id: 24, type: 'question', category: 'Error Correction', difficulty: 'Challenging', points: 20, question: 'Correct the sentence: "We was happy yesterday."', answer: 'We were happy yesterday.' }
+        ];
+
+        /* ==========================================================================
+           2. SPECIAL POWER-UP CARDS DEFINITIONS
+           ========================================================================== */
+        const POWER_UPS = [
+            { id: 'p1', type: 'powerup', title: 'STEAL 10 POINTS', code: 'STEAL_10', icon: '🥷', desc: 'Take 10 points directly from an opponent team!' },
+            { id: 'p2', type: 'powerup', title: 'DOUBLE POINTS', code: 'DOUBLE_NEXT', icon: '⚡', desc: 'Your team earns DOUBLE POINTS on your next correct question!' },
+            { id: 'p3', type: 'powerup', title: 'BONUS +20', code: 'BONUS_20', icon: '🎁', desc: 'Jackpot! Receive +20 bonus points immediately!' },
+            { id: 'p4', type: 'powerup', title: 'SWAP SCORES', code: 'SWAP_SCORES', icon: '🔄', desc: 'Swap your total score with any other team!' },
+            { id: 'p5', type: 'powerup', title: 'FREEZE AN OPPONENT', code: 'FREEZE_TEAM', icon: '🥶', desc: 'Freeze a rival team! They skip their next turn.' },
+            { id: 'p6', type: 'powerup', title: 'CHALLENGE ANOTHER TEAM', code: 'CHALLENGE_TEAM', icon: '⚔️', desc: 'Choose a rival team to answer the next question! If they fail, you steal 10 pts!' },
+            { id: 'p7', type: 'powerup', title: 'RISK IT ALL!', code: 'RISK_IT_ALL', icon: '🎰', desc: 'Coin Flip! 50% chance to gain +30 points, 50% chance to lose 15 points!' },
+            { id: 'p8', type: 'powerup', title: 'EXTRA TURN', code: 'EXTRA_TURN', icon: '🌟', desc: 'Lucky star! Pick and play another card immediately!' }
+        ];
+
+        /* ==========================================================================
+           3. APPLICATION STATE & LOCALSTORAGE
+           ========================================================================== */
+        let state = {
+            cardCount: 20,
+            soundEnabled: true,
+            activeTeamIndex: 0,
+            teams: [
+                { id: 1, name: 'Lions', score: 0, doublePointsNext: false, lostPoints: 0, isFrozen: false },
+                { id: 2, name: 'Tigers', score: 0, doublePointsNext: false, lostPoints: 0, isFrozen: false },
+                { id: 3, name: 'Bears', score: 0, doublePointsNext: false, lostPoints: 0, isFrozen: false }
+            ],
+            boardCards: [],
+            activeCardIndex: null,
+            timerInterval: null,
+            history: []
+        };
+
+        const CARD_COLORS = [
+            { bg: 'bg-cardBlue', border: 'border-blue-600', text: 'text-white' },
+            { bg: 'bg-cardYellow', border: 'border-yellow-600', text: 'text-amber-950' },
+            { bg: 'bg-cardOrange', border: 'border-orange-600', text: 'text-white' },
+            { bg: 'bg-cardGreen', border: 'border-green-600', text: 'text-white' },
+            { bg: 'bg-cardPink', border: 'border-pink-600', text: 'text-white' },
+            { bg: 'bg-cardPurple', border: 'border-purple-600', text: 'text-white' }
+        ];
+
+        /* ==========================================================================
+           4. AUDIO SYNTHESIZER (WEB AUDIO API)
+           ========================================================================== */
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        function playSound(type) {
+            if (!state.soundEnabled) return;
+            
+            try {
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                const now = audioCtx.currentTime;
+
+                if (type === 'correct') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(440, now);
+                    osc.frequency.exponentialRampToValueAtTime(880, now + 0.3);
+                    gain.gain.setValueAtTime(0.3, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                    osc.start(now);
+                    osc.stop(now + 0.3);
+                } else if (type === 'incorrect') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(220, now);
+                    osc.frequency.linearRampToValueAtTime(110, now + 0.3);
+                    gain.gain.setValueAtTime(0.3, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                    osc.start(now);
+                    osc.stop(now + 0.3);
+                } else if (type === 'powerup') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(523.25, now);
+                    osc.frequency.setValueAtTime(659.25, now + 0.1);
+                    osc.frequency.setValueAtTime(783.99, now + 0.2);
+                    osc.frequency.setValueAtTime(1046.50, now + 0.3);
+                    gain.gain.setValueAtTime(0.3, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+                    osc.start(now);
+                    osc.stop(now + 0.5);
+                } else if (type === 'freeze') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(900, now);
+                    osc.frequency.exponentialRampToValueAtTime(300, now + 0.4);
+                    gain.gain.setValueAtTime(0.3, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                    osc.start(now);
+                    osc.stop(now + 0.4);
+                } else if (type === 'timerTick') {
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(1000, now);
+                    gain.gain.setValueAtTime(0.05, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
+                    osc.start(now);
+                    osc.stop(now + 0.03);
+                } else if (type === 'click') {
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(800, now);
+                    gain.gain.setValueAtTime(0.05, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+                    osc.start(now);
+                    osc.stop(now + 0.05);
+                }
+            } catch (e) {
+                console.error("Audio error:", e);
+            }
+        }
+
+        function toggleSound() {
+            state.soundEnabled = !state.soundEnabled;
+            const statusText = document.getElementById('soundStatus');
+            const icon = document.getElementById('soundIcon');
+            
+            if (state.soundEnabled) {
+                statusText.innerText = "Sound: ON";
+                icon.innerText = "🔊";
+                showToast("Sound FX Enabled");
+            } else {
+                statusText.innerText = "Sound: OFF";
+                icon.innerText = "🔇";
+                showToast("Sound FX Muted");
+            }
+            saveLocalState();
+        }
+
+        /* ==========================================================================
+           5. GAME SETUP & BOARD INITIALIZATION
+           ========================================================================== */
+        function initGame(isReset = false) {
+            if (isReset) {
+                saveHistoryState();
+            }
+
+            const questionsPool = [...QUESTION_DATABASE].sort(() => Math.random() - 0.5);
+            const powerUpsPool = [...POWER_UPS].sort(() => Math.random() - 0.5);
+
+            const total = parseInt(state.cardCount);
+            const numPowerUps = Math.min(Math.floor(total * 0.3), powerUpsPool.length); // ~30% power-ups
+            const numQuestions = total - numPowerUps;
+
+            const selectedItems = [];
+            for (let i = 0; i < numQuestions; i++) {
+                selectedItems.push({ ...questionsPool[i % questionsPool.length] });
+            }
+            for (let i = 0; i < numPowerUps; i++) {
+                selectedItems.push({ ...powerUpsPool[i] });
+            }
+
+            selectedItems.sort(() => Math.random() - 0.5);
+
+            state.boardCards = selectedItems.map((item, idx) => {
+                const colorTheme = CARD_COLORS[idx % CARD_COLORS.length];
+                return {
+                    boardIndex: idx + 1,
+                    data: item,
+                    played: false,
+                    colorTheme: colorTheme
+                };
+            });
+
+            if (isReset) {
+                state.teams.forEach(t => { 
+                    t.score = 0; 
+                    t.doublePointsNext = false; 
+                    t.lostPoints = 0; 
+                    t.isFrozen = false; 
+                });
+                state.activeTeamIndex = 0;
+            }
+
+            renderTeams();
+            renderBoard();
+            saveLocalState();
+        }
+
+        function renderTeams() {
+            const container = document.getElementById('teamsContainer');
+            container.innerHTML = '';
+
+            state.teams.forEach((team, index) => {
+                const isActive = index === state.activeTeamIndex;
+                
+                const cardHtml = `
+                    <div class="relative bg-white border-4 ${isActive ? 'border-amber-500 shadow-lg scale-102 ring-4 ring-amber-300' : 'border-slate-200'} ${team.isFrozen ? 'bg-cyan-50 border-cyan-400' : ''} rounded-2xl p-3 transition flex flex-col justify-between">
+                        ${isActive ? '<span class="absolute -top-3 left-4 bg-amber-500 text-white text-[10px] font-black uppercase px-2 py-0.5 rounded-full shadow">Active Turn</span>' : ''}
+                        ${team.isFrozen ? '<span class="absolute -top-3 right-4 bg-cyan-500 text-white text-[10px] font-black uppercase px-2 py-0.5 rounded-full shadow animate-pulse">🥶 Frozen!</span>' : ''}
+                        
+                        <div class="flex justify-between items-center mb-2 gap-1">
+                            <input type="text" value="${escapeHtml(team.name)}" onchange="renameTeam(${index}, this.value)" class="font-extrabold text-sm md:text-base text-slate-800 bg-transparent hover:bg-slate-100 focus:bg-white rounded px-1 w-full border border-transparent focus:border-slate-300 outline-none" title="Click to rename team">
+                            
+                            ${state.teams.length > 2 ? `
+                                <button onclick="removeTeam(${index})" class="text-slate-300 hover:text-rose-500 font-bold text-xs p-1" title="Remove Team">✕</button>
+                            ` : ''}
+                        </div>
+
+                        <div class="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-xl p-2 mb-2">
+                            <span class="text-xs font-bold text-slate-500">SCORE</span>
+                            <div class="flex items-center gap-1">
+                                <span class="text-xl md:text-2xl font-black ${team.score < 0 ? 'text-rose-600' : 'text-emerald-600'}">${team.score}</span>
+                                <span class="text-xs text-slate-400">pts</span>
+                            </div>
+                        </div>
+
+                        ${team.doublePointsNext ? '<div class="text-[10px] bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded text-center mb-2">⚡ 2x Double Next!</div>' : ''}
+
+                        <!-- Adjust Score Controls & Select Active Button -->
+                        <div class="flex items-center justify-between gap-1 pt-1 border-t border-slate-100">
+                            <div class="flex items-center gap-1">
+                                <button onclick="adjustScore(${index}, -5)" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs px-2 py-1 rounded-lg border transition">-5</button>
+                                <button onclick="adjustScore(${index}, 5)" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs px-2 py-1 rounded-lg border transition">+5</button>
+                            </div>
+                            <button onclick="setActiveTeam(${index})" class="text-xs font-black ${isActive ? 'bg-amber-500 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'} px-2.5 py-1 rounded-lg transition">
+                                ${isActive ? 'Current' : 'Select'}
+                            </button>
+                        </div>
+                    </div>
+                `;
+                container.insertAdjacentHTML('beforeend', cardHtml);
+            });
+
+            updateActiveTurnDisplay();
+            updateModalTeamDropdown();
+        }
+
+        function renderBoard() {
+            const grid = document.getElementById('boardGrid');
+            grid.innerHTML = '';
+
+            state.boardCards.forEach((card, index) => {
+                const isPlayed = card.played;
+                const theme = card.colorTheme;
+
+                const cardElement = document.createElement('div');
+                cardElement.className = `card-perspective h-28 sm:h-32 md:h-36 cursor-pointer select-none`;
+                
+                cardElement.innerHTML = `
+                    <div class="card-inner w-full h-full relative rounded-2xl shadow-md transition-all duration-300 transform hover:-translate-y-1 ${isPlayed ? 'flipped opacity-60' : ''}">
+                        
+                        <!-- CARD FRONT (NUMBER) -->
+                        <div onclick="openCard(${index})" class="card-front absolute inset-0 rounded-2xl border-4 ${theme.border} ${theme.bg} ${theme.text} flex flex-col items-center justify-center p-2 shadow-inner">
+                            <span class="text-3xl md:text-5xl font-black drop-shadow-md">${card.boardIndex}</span>
+                            <span class="text-[10px] md:text-xs font-bold uppercase tracking-wider opacity-80 mt-1">Tap to Open</span>
+                        </div>
+
+                        <!-- CARD BACK (PLAYED STATE) -->
+                        <div class="card-back absolute inset-0 rounded-2xl border-4 border-slate-300 bg-slate-200 text-slate-500 flex flex-col items-center justify-center p-2">
+                            <span class="text-2xl">✔️</span>
+                            <span class="text-xs font-extrabold uppercase mt-1">Completed</span>
+                            <button onclick="resetSingleCard(${index}, event)" class="mt-1 text-[10px] text-blue-600 font-bold underline hover:text-blue-800">Reset Card</button>
+                        </div>
+
+                    </div>
+                `;
+                grid.appendChild(cardElement);
+            });
+        }
+
+        function updateActiveTurnDisplay() {
+            const activeTeam = state.teams[state.activeTeamIndex];
+            const display = document.getElementById('activeTurnDisplay');
+            if (activeTeam) {
+                display.innerText = `${activeTeam.name}${activeTeam.isFrozen ? ' (FROZEN)' : ''}`;
+            }
+        }
+
+        /* ==========================================================================
+           6. INTERACTIVE PLAY & MODAL LOGIC
+           ========================================================================== */
+        function openCard(index) {
+            const card = state.boardCards[index];
+            if (!card || card.played) return;
+
+            // Check if active team is frozen
+            const activeTeam = state.teams[state.activeTeamIndex];
+            if (activeTeam && activeTeam.isFrozen) {
+                playSound('freeze');
+                showToast(`🥶 ${activeTeam.name} is Frozen and skips their turn!`);
+                activeTeam.isFrozen = false; // Unfreeze after turn skipped
+                advanceTurn();
+                renderTeams();
+                return;
+            }
+
+            playSound('click');
+            state.activeCardIndex = index;
+
+            const modal = document.getElementById('gameModal');
+            const modalCard = document.getElementById('modalCard');
+            const cardNumber = document.getElementById('modalCardNumber');
+            const category = document.getElementById('modalCategory');
+            const pointsBadge = document.getElementById('modalPointsBadge');
+            const questionText = document.getElementById('modalQuestionText');
+            const answerBox = document.getElementById('modalAnswerBox');
+            const answerText = document.getElementById('modalAnswerText');
+            const questionControls = document.getElementById('questionControls');
+            const powerUpControlsBtn = document.getElementById('powerUpControlsBtn');
+            const powerUpControls = document.getElementById('modalPowerUpControls');
+            const revealBtn = document.getElementById('revealBtn');
+            const scoringButtons = document.getElementById('scoringButtons');
+
+            cardNumber.innerText = `Card #${card.boardIndex}`;
+            answerBox.classList.add('hidden');
+            clearInterval(state.timerInterval);
+
+            if (card.data.type === 'question' || card.data.type === 'challenge') {
+                // Question / Challenge Display
+                category.innerText = card.data.category;
+                category.className = card.data.type === 'challenge' 
+                    ? "bg-amber-500 text-white text-xs font-black uppercase tracking-wider px-2.5 py-1 rounded-lg border border-amber-700 animate-bounce-gentle"
+                    : "bg-blue-100 text-blue-800 text-xs font-black uppercase tracking-wider px-2.5 py-1 rounded-lg border border-blue-300";
+                
+                pointsBadge.innerText = `${card.data.difficulty} (${card.data.points} pts)`;
+                pointsBadge.className = "bg-amber-100 text-amber-800 font-bold text-xs px-3 py-1 rounded-full border border-amber-300";
+                
+                let challengeTimerHtml = '';
+                if (card.data.timerSecs) {
+                    challengeTimerHtml = `
+                        <div class="mt-4 flex flex-col items-center gap-2">
+                            <div id="timerDisplay" class="text-3xl font-black text-rose-600 bg-rose-50 border-2 border-rose-300 px-4 py-1.5 rounded-2xl animate-pulse">
+                                ⏳ 10 SECONDS
+                            </div>
+                            <button id="startTimerBtn" onclick="startChallengeTimer(${card.data.timerSecs})" class="bg-rose-500 hover:bg-rose-600 text-white font-bold text-xs px-4 py-1.5 rounded-xl shadow transition">
+                                ▶️ Start 10s Timer
+                            </button>
+                        </div>
+                    `;
+                }
+
+                questionText.innerHTML = `${card.data.question} ${challengeTimerHtml}`;
+                answerText.innerText = card.data.answer;
+
+                questionControls.classList.remove('hidden');
+                powerUpControlsBtn.classList.add('hidden');
+                powerUpControls.classList.add('hidden');
+                revealBtn.classList.remove('hidden');
+                scoringButtons.classList.add('hidden');
+
+            } else if (card.data.type === 'powerup') {
+                // Power-Up Display
+                playSound('powerup');
+                category.innerText = 'SPECIAL POWER-UP!';
+                category.className = "bg-purple-600 text-white text-xs font-black uppercase tracking-wider px-2.5 py-1 rounded-lg border border-purple-800 animate-pulse";
+                
+                pointsBadge.innerText = "Instant Action";
+                pointsBadge.className = "bg-purple-100 text-purple-800 font-bold text-xs px-3 py-1 rounded-full border border-purple-300";
+
+                questionText.innerHTML = `
+                    <div class="text-5xl md:text-6xl mb-3 animate-bounce-gentle">${card.data.icon}</div>
+                    <div class="text-purple-900 font-black text-2xl md:text-3xl">${card.data.title}</div>
+                    <p class="text-sm md:text-base text-slate-600 font-bold mt-2 max-w-md mx-auto">${card.data.desc}</p>
+                `;
+
+                questionControls.classList.add('hidden');
+                powerUpControlsBtn.classList.remove('hidden');
+
+                // Setup targeted team dropdown for powerups requiring targeted selection
+                if (['STEAL_10', 'SWAP_SCORES', 'FREEZE_TEAM', 'CHALLENGE_TEAM'].includes(card.data.code)) {
+                    powerUpControls.classList.remove('hidden');
+                    populateTargetSelect();
+                } else {
+                    powerUpControls.classList.add('hidden');
+                }
+            }
+
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modalCard.classList.remove('scale-95', 'opacity-0');
+                modalCard.classList.add('scale-100', 'opacity-100');
+            }, 10);
+        }
+
+        function startChallengeTimer(seconds) {
+            let timeLeft = seconds;
+            const display = document.getElementById('timerDisplay');
+            const btn = document.getElementById('startTimerBtn');
+            if (btn) btn.disabled = true;
+
+            clearInterval(state.timerInterval);
+            state.timerInterval = setInterval(() => {
+                timeLeft--;
+                playSound('timerTick');
+                if (display) {
+                    display.innerText = `⏳ ${timeLeft} SECONDS`;
+                }
+
+                if (timeLeft <= 0) {
+                    clearInterval(state.timerInterval);
+                    playSound('incorrect');
+                    if (display) {
+                        display.innerText = `⏰ TIME'S UP!`;
+                        display.classList.add('animate-shake');
+                    }
+                }
+            }, 1000);
+        }
+
+        function closeModal() {
+            clearInterval(state.timerInterval);
+            const modal = document.getElementById('gameModal');
+            const modalCard = document.getElementById('modalCard');
+
+            modalCard.classList.remove('scale-100', 'opacity-100');
+            modalCard.classList.add('scale-95', 'opacity-0');
+
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                state.activeCardIndex = null;
+            }, 200);
+        }
+
+        function revealAnswer() {
+            playSound('click');
+            document.getElementById('modalAnswerBox').classList.remove('hidden');
+            document.getElementById('revealBtn').classList.add('hidden');
+            document.getElementById('scoringButtons').classList.remove('hidden');
+        }
+
+        function handleQuestionResult(isCorrect) {
+            saveHistoryState();
+            const card = state.boardCards[state.activeCardIndex];
+            const activeTeam = state.teams[state.activeTeamIndex];
+
+            if (isCorrect) {
+                playSound('correct');
+                let awardedPoints = card.data.points;
+
+                if (activeTeam.doublePointsNext) {
+                    awardedPoints *= 2;
+                    activeTeam.doublePointsNext = false;
+                    showToast(`⚡ DOUBLE POINTS applied! Earned +${awardedPoints} pts!`);
+                } else {
+                    showToast(`Correct! +${awardedPoints} points for ${activeTeam.name}`);
+                }
+
+                activeTeam.score += awardedPoints;
+            } else {
+                playSound('incorrect');
+                activeTeam.lostPoints += 5;
+                showToast(`Incorrect! No points awarded.`);
+            }
+
+            card.played = true;
+
+            advanceTurn();
+
+            renderTeams();
+            renderBoard();
+            closeModal();
+            saveLocalState();
+        }
+
+        /* ==========================================================================
+           7. POWER-UP EXECUTION LOGIC
+           ========================================================================== */
+        function populateTargetSelect() {
+            const select = document.getElementById('powerUpTargetSelect');
+            select.innerHTML = '';
+            
+            state.teams.forEach((team, index) => {
+                if (index !== state.activeTeamIndex) {
+                    const opt = document.createElement('option');
+                    opt.value = index;
+                    opt.innerText = `${team.name} (Current Score: ${team.score} pts)`;
+                    select.appendChild(opt);
+                }
+            });
+        }
+
+        function applyPowerUp() {
+            saveHistoryState();
+            const card = state.boardCards[state.activeCardIndex];
+            const activeTeam = state.teams[state.activeTeamIndex];
+            const targetSelect = document.getElementById('powerUpTargetSelect');
+            const targetIndex = parseInt(targetSelect.value);
+            const targetTeam = state.teams[targetIndex];
+
+            let message = "";
+
+            switch (card.data.code) {
+                case 'STEAL_10':
+                    if (targetTeam) {
+                        const stolen = Math.min(10, Math.max(0, targetTeam.score));
+                        targetTeam.score -= stolen;
+                        activeTeam.score += stolen;
+                        message = `${activeTeam.name} stole ${stolen} points from ${targetTeam.name}!`;
+                    }
+                    break;
+
+                case 'DOUBLE_NEXT':
+                    activeTeam.doublePointsNext = true;
+                    message = `${activeTeam.name} gets DOUBLE POINTS on their next correct question!`;
+                    break;
+
+                case 'BONUS_20':
+                    activeTeam.score += 20;
+                    message = `${activeTeam.name} gained +20 bonus points!`;
+                    break;
+
+                case 'SWAP_SCORES':
+                    if (targetTeam) {
+                        const temp = activeTeam.score;
+                        activeTeam.score = targetTeam.score;
+                        targetTeam.score = temp;
+                        message = `${activeTeam.name} swapped scores with ${targetTeam.name}!`;
+                    }
+                    break;
+
+                case 'FREEZE_TEAM':
+                    if (targetTeam) {
+                        targetTeam.isFrozen = true;
+                        playSound('freeze');
+                        message = `🥶 ${targetTeam.name} is FROZEN and will skip their next turn!`;
+                    }
+                    break;
+
+                case 'CHALLENGE_TEAM':
+                    if (targetTeam) {
+                        state.activeTeamIndex = targetIndex;
+                        message = `⚔️ ${activeTeam.name} challenged ${targetTeam.name} to answer next!`;
+                    }
+                    break;
+
+                case 'RISK_IT_ALL':
+                    const win = Math.random() >= 0.5;
+                    if (win) {
+                        activeTeam.score += 30;
+                        playSound('powerup');
+                        message = `🎰 RISK IT ALL WORKED! ${activeTeam.name} won +30 points!`;
+                    } else {
+                        activeTeam.score -= 15;
+                        playSound('incorrect');
+                        message = `💥 RISK IT ALL FAILED! ${activeTeam.name} lost 15 points!`;
+                    }
+                    break;
+
+                case 'EXTRA_TURN':
+                    message = `🌟 ${activeTeam.name} earned an EXTRA TURN!`;
+                    break;
+            }
+
+            if (card.data.code !== 'RISK_IT_ALL' && card.data.code !== 'FREEZE_TEAM') {
+                playSound('powerup');
+            }
+            showToast(message);
+
+            card.played = true;
+
+            if (card.data.code !== 'CHALLENGE_TEAM' && card.data.code !== 'EXTRA_TURN') {
+                advanceTurn();
+            }
+
+            renderTeams();
+            renderBoard();
+            closeModal();
+            saveLocalState();
+        }
+
+        /* ==========================================================================
+           8. TEAM & TURN MANAGEMENT
+           ========================================================================== */
+        function setActiveTeam(index) {
+            state.activeTeamIndex = parseInt(index);
+            renderTeams();
+            saveLocalState();
+        }
+
+        function advanceTurn() {
+            state.activeTeamIndex = (state.activeTeamIndex + 1) % state.teams.length;
+        }
+
+        function addNewTeam() {
+            saveHistoryState();
+            const newId = Date.now();
+            const teamNames = ['Eagles', 'Falcons', 'Dolphins', 'Sharks', 'Panthers', 'Wolves'];
+            const unusedName = teamNames.find(name => !state.teams.some(t => t.name === name)) || `Team ${state.teams.length + 1}`;
+            
+            state.teams.push({
+                id: newId,
+                name: unusedName,
+                score: 0,
+                doublePointsNext: false,
+                lostPoints: 0,
+                isFrozen: false
+            });
+
+            renderTeams();
+            saveLocalState();
+            showToast(`Added ${unusedName}`);
+        }
+
+        function removeTeam(index) {
+            if (state.teams.length <= 2) {
+                showToast("At least 2 teams are required!");
+                return;
+            }
+            saveHistoryState();
+            const removed = state.teams.splice(index, 1)[0];
+            if (state.activeTeamIndex >= state.teams.length) {
+                state.activeTeamIndex = 0;
+            }
+            renderTeams();
+            saveLocalState();
+            showToast(`Removed ${removed.name}`);
+        }
+
+        function renameTeam(index, newName) {
+            if (!newName.trim()) return;
+            state.teams[index].name = newName.trim();
+            renderTeams();
+            saveLocalState();
+        }
+
+        function adjustScore(index, delta) {
+            saveHistoryState();
+            state.teams[index].score += delta;
+            renderTeams();
+            saveLocalState();
+            showToast(`Adjusted ${state.teams[index].name} score by ${delta > 0 ? '+' : ''}${delta}`);
+        }
+
+        function updateModalTeamDropdown() {
+            const select = document.getElementById('modalActiveTeamSelect');
+            if (!select) return;
+            select.innerHTML = '';
+            state.teams.forEach((team, idx) => {
+                const opt = document.createElement('option');
+                opt.value = idx;
+                opt.innerText = team.name;
+                if (idx === state.activeTeamIndex) opt.selected = true;
+                select.appendChild(opt);
+            });
+        }
+
+        function changeCardCount(val) {
+            state.cardCount = parseInt(val);
+            initGame(true);
+            showToast(`Board updated to ${val} cards`);
+        }
+
+        function resetSingleCard(index, event) {
+            event.stopPropagation();
+            saveHistoryState();
+            state.boardCards[index].played = false;
+            renderBoard();
+            saveLocalState();
+            showToast(`Card #${state.boardCards[index].boardIndex} reset`);
+        }
+
+        /* ==========================================================================
+           9. UNDO & RESET MECHANISMS
+           ========================================================================== */
+        function saveHistoryState() {
+            if (state.history.length > 15) state.history.shift();
+            state.history.push(JSON.stringify({
+                teams: state.teams,
+                boardCards: state.boardCards,
+                activeTeamIndex: state.activeTeamIndex
+            }));
+        }
+
+        function undoLastScore() {
+            if (state.history.length === 0) {
+                showToast("No actions to undo!");
+                return;
+            }
+            const previousState = JSON.parse(state.history.pop());
+            state.teams = previousState.teams;
+            state.boardCards = previousState.boardCards;
+            state.activeTeamIndex = previousState.activeTeamIndex;
+
+            renderTeams();
+            renderBoard();
+            saveLocalState();
+            showToast("↩️ Action Undone");
+        }
+
+        function confirmResetGame() {
+            const modal = document.createElement('div');
+            modal.className = "fixed inset-0 bg-slate-900/80 z-50 flex items-center justify-center p-4";
+            modal.innerHTML = `
+                <div class="bg-white border-4 border-rose-500 rounded-2xl p-6 max-w-sm w-full text-center shadow-2xl">
+                    <div class="text-4xl mb-2">⚠️</div>
+                    <h3 class="text-xl font-black text-slate-800 mb-2">Reset Entire Game?</h3>
+                    <p class="text-sm text-slate-600 mb-6 font-bold">This will reset all team scores to 0 and shuffle a brand new board.</p>
+                    <div class="flex gap-3">
+                        <button id="cancelReset" class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-2 rounded-xl">Cancel</button>
+                        <button id="confirmReset" class="flex-1 bg-rose-600 hover:bg-rose-700 text-white font-bold py-2 rounded-xl">Yes, Reset</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            document.getElementById('cancelReset').onclick = () => modal.remove();
+            document.getElementById('confirmReset').onclick = () => {
+                modal.remove();
+                initGame(true);
+                showToast("Game Board Reset!");
+            };
+        }
+
+        /* ==========================================================================
+           10. LOCALSTORAGE & CSV EXPORT
+           ========================================================================== */
+        function saveLocalState() {
+            const data = {
+                teams: state.teams,
+                boardCards: state.boardCards,
+                activeTeamIndex: state.activeTeamIndex,
+                cardCount: state.cardCount,
+                soundEnabled: state.soundEnabled
+            };
+            localStorage.setItem('past_tense_battle_save', JSON.stringify(data));
+        }
+
+        function loadLocalState() {
+            const saved = localStorage.getItem('past_tense_battle_save');
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    state.teams = parsed.teams || state.teams;
+                    state.boardCards = parsed.boardCards || [];
+                    state.activeTeamIndex = parsed.activeTeamIndex || 0;
+                    state.cardCount = parsed.cardCount || 20;
+                    state.soundEnabled = parsed.soundEnabled !== undefined ? parsed.soundEnabled : true;
+                    
+                    document.getElementById('cardCountSelect').value = state.cardCount;
+                    
+                    if (state.boardCards.length === state.cardCount) {
+                        renderTeams();
+                        renderBoard();
+                        return true;
+                    }
+                } catch(e) {
+                    console.error("Failed loading save:", e);
+                }
+            }
+            return false;
+        }
+
+        function exportToCSV() {
+            let csvContent = "data:text/csv;charset=utf-8,";
+            csvContent += "Rank,Team Name,Score\n";
+
+            const sortedTeams = [...state.teams].sort((a, b) => b.score - a.score);
+
+            sortedTeams.forEach((team, idx) => {
+                csvContent += `${idx + 1},"${team.name.replace(/"/g, '""')}",${team.score}\n`;
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `Past_Tense_Battle_Results_${new Date().toISOString().slice(0,10)}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            showToast("📊 Results exported as CSV!");
+        }
+
+        /* ==========================================================================
+           11. HELPERS & UTILITIES
+           ========================================================================== */
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg;
+            toast.classList.remove('hidden');
+            setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 3000);
+        }
+
+        function escapeHtml(str) {
+            return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+        }
+
+        /* ==========================================================================
+           12. INITIALIZATION ON WINDOW LOAD
+           ========================================================================== */
+        window.onload = function() {
+            const loaded = loadLocalState();
+            if (!loaded) {
+                initGame(false);
+            }
+        };
+    </script>
+</body>
+</html>
